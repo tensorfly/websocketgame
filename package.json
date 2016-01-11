@@ -1,0 +1,25 @@
+{
+  "name": "websocketgame",
+  "version": "0.0.0",
+  "description": "a demo of using your phone browser as gamepad to play html5 games. The devices talk to each other by websocket",
+  "homepage": "http://socket.io",
+  "keywords": [
+    "websocket"
+  ],
+  "author": {
+    "name": "kun huang",
+    "email": "kunhuang09@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tensorfly/websocketgame"
+  },
+  "dependencies": {
+    "express": "*",
+    "socket.io": "*",
+  }
+  "main": "index",
+  "engines": {
+    "node": ">= 0.4.0"
+  }
+}

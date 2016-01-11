@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Test page</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" href="/static/css/fonts.css" type="text/css" charset="utf-8">
+		<style>
+			body {
+				background:#ccc;
+				padding:0;
+				margin:0;
+				overflow:hidden;
+				font-family:georgia;
+				text-align:center;
+				color: #666;
+			}
+			h1 {color: #666	; }
+			a { color:skyblue }
+			canvas { pointer-events:none; }
+			#overlay{
+				position: absolute;
+				z-index: 9999;
+				top: 0;
+				left: 0;
+				width: 100%;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="overlay"></div>
+		<div id="main"></div>
+		<script src="/static/js/socket.io.min.js"></script>
+		<script src="/static/js/qrcode.js"></script>
+		<script src="/static/js/Three.dev.js"></script>
+		<script src="/static/js/ShaderExtras.js"></script>
+		<script src="/static/js/postprocessing/EffectComposer.js"></script>
+		<script src="/static/js/postprocessing/RenderPass.js"></script>
+		<script src="/static/js/postprocessing/BloomPass.js"></script>
+		<script src="/static/js/postprocessing/ShaderPass.js"></script>
+		<script src="/static/js/postprocessing/MaskPass.js"></script>
+		<script src="/static/js/Detector.js"></script>
+		<script src="/static/js/Stats.js"></script>
+		<script src="/static/js/DAT.GUI.min.js"></script>
+
+		<script src="/static/bkcore/Timer.js"></script>
+		<script src="/static/bkcore/ImageData.js"></script>
+		<script src="/static/bkcore/Utils.js"></script>
+
+		<script src="/static/bkcore/threejs/RenderManager.js"></script>
+		<script src="/static/bkcore/threejs/Shaders.js"></script>
+		<script src="/static/bkcore/threejs/Particles.js"></script>
+		<script src="/static/bkcore/threejs/Loader.js"></script>
+
+		<script src="/static/bkcore/hexgl/HUD.js"></script>
+		<script src="/static/bkcore/hexgl/ShipControls.js"></script>
+		<script src="/static/bkcore/hexgl/ShipEffects.js"></script>
+		<script src="/static/bkcore/hexgl/CameraChase.js"></script>
+		<script src="/static/bkcore/hexgl/Gameplay.js"></script>
+
+		<script src="/static/bkcore/hexgl/tracks/Cityscape.js"></script>
+
+		<script src="/static/bkcore/hexgl/HexGL.js"></script>
+
+		<script>
+
+			var SCREEN_WIDTH = window.innerWidth;
+			var SCREEN_HEIGHT = window.innerHeight;
+
+			var container, hudcontainer;
+
+			var hexGL;
+/*******************************************************************/
+			var baseUrl = /^(http:\/\/[^\/]+).*$/.exec(location.href)[1];
+			var cfg = {		
+				ctrlUrl: baseUrl + '/ctrl.html',
+				qrWidth: 400,
+				QR: null
+			};
+			var game = io.connect(baseUrl + "/game");
+/*******************************************************************/
+
+			function init() {
+				hudcontainer = document.getElementById("overlay");
+				container = document.getElementById("main");
+
+
+/*******************************************************************/
+
+				game.on('connect', function(){
+				});
+				game.on("make QRcode", function(res){
+					makeQR(res.seed);
+				});
+					function makeQR(seed){
+						var type = -1;
+						var level = QRErrorCorrectLevel.H;
+						var text = cfg.ctrlUrl + '?seed='+seed;
+						console.log(text);
+						var qrcode = new QRCode(type, level);
+						qrcode.addData(text);
+						qrcode.make();
+
+						var len = qrcode.getModuleCount();
+						var width = cfg.qrWidth;
+						var padding = Math.floor(width/10);
+						var netWidth = width - 2*padding;
+						var tileWidth = Math.floor(netWidth/len);
+						netWidth = tileWidth*len;
+						width = cfg.qrWidth = netWidth + 2*padding;
+						
+						var fg = "#000000", bg = "#ffffff"; 
+						var w = tileWidth, h=tileWidth;
+						var _cvs =cfg.QR= document.createElement("canvas");
+						var _ctx = _cvs.getContext("2d");
+						_cvs.width = _cvs.height = width;
+						_ctx.fillStyle = bg;
+						_ctx.fillRect(0,0,width,width);		
+						_ctx.fillStyle = fg;	
+						for (var row = 0; row<len; row++){
+							for (var col = 0; col<len; col++){
+								var isDark = qrcode.isDark(row, col);
+								if(isDark) {
+									var x = padding + col*w;
+									var y = padding + row*h;	
+									_ctx.fillRect(x, y, w, h);							
+								}					
+							}
+						}
+						_cvs.id = "QR";
+
+
+						var _tip =cfg.tip= document.createElement("div");
+						_tip.style.width = "600px";
+						_tip.style.margin = "0 auto";
+						_tip.innerHTML = "手机扫描二维码连接后，横握手机，左右倾斜手机控制方向，按钮控制前进/暂停。。。";
+						document.body.appendChild(_cvs);			
+						document.body.appendChild(_tip);			
+					}
+					game.on("start game", function(res){
+						console.log('game start!');
+						document.body.removeChild(cfg.QR);
+						document.body.removeChild(cfg.tip);
+						hexGL = new bkcore.hexgl.HexGL({
+							document: document,
+							width: SCREEN_WIDTH,
+							height: SCREEN_HEIGHT,
+							container: container,
+							overlay: overlay,
+							quality: bkcore.Utils.getURLParameter('quality'),
+							difficulty: bkcore.Utils.getURLParameter('difficulty'),
+							half: bkcore.Utils.getURLParameter('half'),
+							track: 'Cityscape'
+						});
+
+						hexGL.load({
+							onLoad: function(){
+								console.log("ALL LOADED.");
+								hexGL.init();
+								hexGL.start();
+							},
+							onError: function(s){
+								console.log("ERROR ON "+s+".");
+							},
+							onProgress: function(p, t, n)
+							{
+								console.log("LOADED "+t+" : "+n+" ( "+p.loaded+" / "+p.total+" ).");
+							}
+						});
+					});
+/*******************************************************************/
+
+			}
+			
+			init();
+
+		</script>
+
+	</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="viewport" content="height=device-height,width=device-width,user-scalable=no">
+	<title>Controller</title>
+	<script type="text/javascript" src="/static/js/socket.io.min.js"></script>
+	<script type="text/javascript" src="/static/js/zepto.min.js"></script>	
+	<style>
+		body, html{
+			width: 100%;
+			height: 100%;
+			padding: 0px;
+			margin: 0px;
+		}
+		#leftBtn {
+			position: absolute;
+			background: #0f0;
+			width: 40%;
+			height: 0px;
+			padding-bottom: 40%;
+			border-radius: 50%;
+			left: 0px;
+			bottom: 0px;
+		}
+		#rightBtn {
+			position: absolute;
+			background: #f00;
+			width: 40%;
+			height: 0px;
+			padding-bottom: 40%;
+			border-radius: 50%;
+			right: 0px;
+			bottom: 0px;
+		}
+	</style>
+</head>
+<body>
+	<div id="leftBtn">go!</div>
+	<div id="rightBtn">stop</div>
+<!-- 	<div class="button" id="redBtn" style="background: red">change to red</div>
+	<div class="button" id="blueBtn" style="background: blue">change to blue</div> -->
+	<script>
+		var baseUrl = /^(http:\/\/[^\/]+).*$/.exec(location.href)[1];
+		var seed = /seed=(\d+).*$/.exec(location.href)[1];
+		console.log(seed);
+		var ctrl = io.connect(baseUrl + "/ctrl");
+		
+		ctrl.on('connect', function(){
+			console.log("linking game");
+
+
+			ctrl.emit("link game", {seed: seed});
+
+			prepareScene(ctrl);
+
+
+		});
+
+		function prepareScene(ctrl) {
+			window.addEventListener('deviceorientation', function(e){
+  				var al = e.alpha, beta = e.beta, gm = e.gamma;
+  				ctrl.emit('turn', {al:al, beta:beta, gm:gm});
+  			}, false);
+
+  			$('#leftBtn').bind("touchstart mousedown", function(e){
+  				ctrl.emit('forward', {forward: true});
+  			},false);	
+  			$('#rightBtn').bind("touchstart mousedown", function(e){
+  				ctrl.emit('forward', {forward: false});
+  			},false);	
+		}
+		
+	</script>
+</body>
+</html>
